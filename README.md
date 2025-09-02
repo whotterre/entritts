@@ -9,6 +9,8 @@ It uses the microservices architecture and is written with:
 I aim to use this to learn more about microservices architecture, distributed systems and
 patterns in building them, and RabbitMQ as well.
 
+# Feature Check List
+https://www.notion.so/Ticket-Management-2035062deeab80d3a4b2f7d7b7c4dc4e
 # Functional Requirements
 
 # Non-Functional Requirements
