@@ -156,7 +156,7 @@ EOF
 # Create Dockerfile
 cat > Dockerfile << 'EOF'
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.23-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go mod download
