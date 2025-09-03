@@ -7,6 +7,12 @@
 service_name=${1:-newservice}
 
 echo "Creating new service: $service_name..."
+if [ -d "services" ]; then 
+   cd services
+else 
+   mkdir services
+   cd services
+fi
 
 # Check if a directory already exists with that name
 if [ -d "$service_name" ]; then
