@@ -1,11 +1,12 @@
 # Entritts
 Entritts is a ticket reservation/ event management backend system.
-It uses the microservices architecture and is written with:
+It uses the microservices architecture and use the following technologies:
 -  Fiber (Super fast web framework written in Go).
 -  RabbitMQ (Message queue to enable communication between services and decoupling).
 -  PostgreSQL( Consistency + Availability matter in this system).
 -  Amazon S3 or Cloudinary for object storage.
 -  GitHub Actions for CI/CD.
+
 I aim to use this to learn more about microservices architecture, distributed systems and
 patterns in building them, and RabbitMQ as well.
 
