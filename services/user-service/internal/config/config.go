@@ -1,0 +1,41 @@
+package config
+
+import (
+	"os"
+
+	"github.com/joho/godotenv"
+)
+
+type Config struct {
+	ServiceName          string
+	ServerPort           string
+	DBHost               string
+	DBPort               string
+	DBUser               string
+	DBPassword           string
+	DBName               string
+	RabbitMQURL          string
+}
+
+func LoadConfig() *Config {
+	// Load .env file if it exists
+	_ = godotenv.Load()
+
+	return &Config{
+		ServiceName:          getEnv("SERVICE_NAME", "user-service"),
+		ServerPort:           getEnv("SERVER_PORT", "8080"),
+		DBHost:               getEnv("DB_HOST", "localhost"),
+		DBPort:               getEnv("DB_PORT", "5432"),
+		DBUser:               getEnv("DB_USER", "postgres"),
+		DBPassword:           getEnv("DB_PASSWORD", "password"),
+		DBName:               getEnv("DB_NAME", "user-service_db"),
+		RabbitMQURL:          getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
+	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}

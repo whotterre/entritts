@@ -1,0 +1,22 @@
+# Binaries
+main
+*.exe
+*.out
+
+# Dependencies
+vendor/
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Coverage
+coverage.txt
