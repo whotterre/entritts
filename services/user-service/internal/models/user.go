@@ -19,21 +19,3 @@ type User struct {
 	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
-// UserRoles - defines roles for users
-type UserRoles struct {
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	UserID     uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
-	User       User      `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"user"`
-	Role       string    `gorm:"type:varchar(20);not null;check:role IN ('ATTENDEE', 'HOST', 'SPEAKER')" json:"role"`
-	AssignedAt time.Time `gorm:"autoCreateTime" json:"assigned_at"`
-}
-
-// UserSessions - keeps info on user sessions
-type UserSessions struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"session_id"`
-	UserID    uuid.UUID `gorm:"type:uuid;not null" json:"user_id"`
-	User      User      `gorm:"foreignKey:UserID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;" json:"user"`
-	Token     string    `gorm:"type:varchar(255);not null;uniqueIndex" json:"-"`
-	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
-	ExpiresAt time.Time `gorm:"not null" json:"expires_at"`
-}
