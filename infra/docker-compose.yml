@@ -12,7 +12,7 @@ services:
       - user_db_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
     networks:
-      - tix-network
+      - entritts-network
 
   # ---------- MESSAGE BROKER ----------
   rabbitmq:
@@ -21,7 +21,7 @@ services:
       - "5672:5672"   # AMQP protocol
       - "15672:15672" # Management UI
     networks:
-      - tix-network
+      - entritts-network
 
   # ---------- Microservices ----------
   api-gateway:
@@ -36,7 +36,7 @@ services:
     depends_on:
       - user-service
     networks:
-      - tix-network
+      - entritts-network
 
   user-service:
     build: ../services/user-service  # Path to your user-service
@@ -53,12 +53,12 @@ services:
       - user-db
       - rabbitmq
     networks:
-      - tix-network
+      - entritts-network
 
 volumes:
   user_db_data:
   # event_db_data:
 
 networks:
-  tix-network:
+  entritts-network:
     driver: bridge

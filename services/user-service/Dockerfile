@@ -5,7 +5,7 @@ ENV POSTGRES_PASSWORD=mypassword
 ENV POSTGRES_DB=user_service_db
 
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24.6-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go mod download
@@ -20,4 +20,7 @@ COPY --from=builder /app/.env .
 EXPOSE 8080
 EXPOSE 5432
 
-CMD ["./main"]
+COPY wait-for-it.sh /wait-for-it.sh
+RUN chmod +x /wait-for-it.sh
+
+CMD ["/wait-for-it.sh", "user-db", "5432", "./main"]
