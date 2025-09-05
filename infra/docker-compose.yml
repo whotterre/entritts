@@ -1,1 +1,64 @@
 services:
+  # ---------- DATABASES ---------- 
+  user-db:
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: user_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - tix-network
+
+  # ---------- MESSAGE BROKER ----------
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"   # AMQP protocol
+      - "15672:15672" # Management UI
+    networks:
+      - tix-network
+
+  # ---------- Microservices ----------
+  api-gateway:
+    build: ../services/gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=proliferate
+      - USER_SERVICE_URL=http://user-service:3000
+      - EVENT_SERVICE_URL=http://event-service:3000
+      - ORDER_SERVICE_URL=http://order-service:3000
+    depends_on:
+      - user-service
+    networks:
+      - tix-network
+
+  user-service:
+    build: ../services/user-service  # Path to your user-service
+    ports:
+      - "3001:3000"
+    environment:
+      - DB_HOST=user-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=user_db
+      - SERVICE_PORT=3000
+    depends_on:
+      - user-db
+      - rabbitmq
+    networks:
+      - tix-network
+
+volumes:
+  user_db_data:
+  # event_db_data:
+
+networks:
+  tix-network:
+    driver: bridge
