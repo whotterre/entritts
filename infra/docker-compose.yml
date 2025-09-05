@@ -14,7 +14,7 @@ services:
     networks:
       - entritts-network
 
-  # ---------- MESSAGE BROKER ----------
+  # ---------- Message Broker ----------
   rabbitmq:
     image: rabbitmq:3-management
     ports:
@@ -39,7 +39,7 @@ services:
       - entritts-network
 
   user-service:
-    build: ../services/user-service  # Path to your user-service
+    build: ../services/user-service  
     ports:
       - "3001:3000"
     environment:

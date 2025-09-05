@@ -2,18 +2,17 @@ package main
 
 import (
 	"gateway/internal/config"
-	"strings"
+	"gateway/internal/middleware"
+	"time"
 
 	"github.com/gofiber/contrib/fiberzap"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/proxy"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
-// TODO: Add rate limiting as well 
+// TODO: Add rate limiting as well
 
 // ServiceRegistry holds the URLs for the different microservices.
 type ServiceRegistry struct {
@@ -35,84 +34,6 @@ func NewServiceRegistry(logger *zap.Logger) *ServiceRegistry {
 	}
 }
 
-// AuthMiddleware performs authentication with Bearer Auth
-func AuthMiddleware(config *config.Config, logger *zap.Logger) fiber.Handler {
-	return func(c *fiber.Ctx) error {
-		if isPublicRoute(c.Path()) {
-			return c.Next()
-		}
-
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
-			logger.Warn("Missing authorization header")
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing authorization header",
-			})
-		}
-		// Ensure it has "Bearer prefix"
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			logger.Warn("Invalid auth type")
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid auth type",
-			})
-		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		// Ensure JWT is valid
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return "", nil
-		})
-
-		if err != nil {
-			logger.Warn("Invalid token", zap.Error(err))
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
-			})
-		}
-
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			logger.Warn("Invalid token claims")
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token claims",
-			})
-		}
-
-		userIDStr, ok := claims["user_id"].(string)
-		if !ok {
-			logger.Warn("Invalid user ID in token")
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid user ID in token",
-			})
-		}
-
-		userID, err := uuid.Parse(userIDStr)
-		if err != nil {
-			logger.Warn("Invalid user ID format", zap.Error(err))
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid user ID format",
-			})
-		}
-		
-
-		c.Locals("userID", userID)
-		return c.Next()
-	}
-}
-
-func isPublicRoute(path string) bool {
-	publicRoutes := []string{"/health", "/api/v1/users/login", "/api/v1/users/register"}
-	for _, route := range publicRoutes {
-		if path == route {
-			return true
-		}
-	}
-	return false
-}
-
 func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
@@ -125,30 +46,109 @@ func main() {
 	app.Use(fiberzap.New(fiberzap.Config{Logger: logger}))
 	app.Use(cors.New())
 	config := config.LoadConfig()
-	
-	app.Use(AuthMiddleware(config, logger)) 
+
+	// Public Routes Group
+	publicGroup := app.Group("/api/v1")
 
 	// Health check
-	app.Get("/health", func(c *fiber.Ctx) error {
+	publicGroup.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"status":  "ok",
 			"service": "gateway",
 		})
 	})
 
-	// Setup proxy routes for all services
+	// Public auth routes
+	publicGroup.All("/auth/*", func(c *fiber.Ctx) error {
+		// Get the path after /api/v1/auth/
+		path := c.Params("*")
+
+		// Remove any leading slashes from path
+		for len(path) > 0 && path[0] == '/' {
+			path = path[1:]
+		}
+
+		// Check if user service exists in registry
+		if _, exists := registry.services["users"]; !exists {
+			logger.Error("User service not found in registry")
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "Service configuration error",
+			})
+		}
+
+		// Build the target URL with the correct path
+		// Convert /user/ to /users/ for proper user service routing
+		if len(path) >= 5 && path[:5] == "user/" {
+			path = "users/" + path[5:]
+		}
+		targetURL := registry.services["users"] + "/" + path
+
+		logger.Info("Proxying auth request",
+			zap.String("targetURL", targetURL),
+			zap.String("originalURL", c.OriginalURL()),
+			zap.String("path", path))
+
+		// Attempt the proxy request with simple retry logic
+		var err error
+		maxRetries := 3
+		for i := 0; i < maxRetries; i++ {
+			if err = proxy.Do(c, targetURL); err == nil {
+				break
+			}
+			if i < maxRetries-1 {
+				logger.Info("Retrying proxy request",
+					zap.String("targetURL", targetURL),
+					zap.Int("attempt", i+2),
+					zap.Error(err))
+				time.Sleep(time.Duration(i+1) * 100 * time.Millisecond)
+			}
+		}
+
+		if err != nil {
+			logger.Error("Auth proxy error",
+				zap.Error(err),
+				zap.String("targetURL", targetURL))
+
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error":   "Authentication service unavailable",
+				"details": err.Error(),
+			})
+		}
+		return nil
+	})
+
+	// Public event routes
+	publicGroup.Get("/events", func(c *fiber.Ctx) error {
+		targetURL := registry.services["events"] + "/public" + c.Params("*")
+		if err := proxy.Do(c, targetURL); err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "Events service unavailable",
+			})
+		}
+		c.Response().Header.Del(fiber.HeaderServer)
+		return nil
+	})
+
+	// Protected Routes Group
+	privateGroup := app.Group("/api/v1")
+	privateGroup.Use(middleware.RequireAuth(config, logger))
+
+	// Setup proxy routes for protected services
 	for serviceName, serviceURL := range registry.services {
+		// Skip auth routes as they're handled separately
+		if serviceName == "auth" {
+			continue
+		}
+
 		// Create a closure to capture the serviceName and serviceURL
 		func(name, url string) {
-			// app.All registers the route for all HTTP methods
-			app.All("/api/v1/" + name + "/*", func(c *fiber.Ctx) error {
+			privateGroup.All("/"+name+"/*", func(c *fiber.Ctx) error {
 				targetURL := url + c.Params("*")
 				if err := proxy.Do(c, targetURL); err != nil {
 					return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 						"error": "Service unavailable",
 					})
 				}
-				// Remove the Gateway's server header if present
 				c.Response().Header.Del(fiber.HeaderServer)
 				return nil
 			})
