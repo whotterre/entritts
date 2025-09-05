@@ -1,6 +1,7 @@
 package repositories
 
 import (
+	"log"
 	"user-service/internal/models"
 
 	"github.com/google/uuid"
@@ -24,18 +25,23 @@ func NewUserRepository(db *gorm.DB) UserRepository {
 }
 
 func (r *userRepository) CreateUser(user *models.User) error {
-	if err := r.db.Create(user).Error; err != nil {
-		return err
+	log.Printf("Creating user: %+v", user)
+	result := r.db.Create(user)
+	if result.Error != nil {
+		log.Printf("Error creating user: %v", result.Error)
+		return result.Error
 	}
+	log.Printf("Created user with ID: %v", user.ID)
 	return nil
 }
 
 func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
-	var user *models.User
-	if err := r.db.Where("email = ?", email).First(&user).Error; err != nil {
-		return nil, err
+	var user models.User
+	result := r.db.Where("email = ?", email).First(&user)
+	if result.Error != nil {
+		return nil, result.Error
 	}
-	return user, nil
+	return &user, nil
 }
 
 func (r *userRepository) GetUserById(id uuid.UUID) (*models.User, error) {

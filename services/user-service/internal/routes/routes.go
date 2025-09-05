@@ -1,17 +1,22 @@
 package routes
 
 import (
+	"user-service/internal/handlers"
+	"user-service/internal/repositories"
+	"user-service/internal/services"
+
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
-func SetupRoutes(app *fiber.App) {
-	api := app.Group("/api/v1")
-	
+func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger) {
+
 	// Health check endpoint
-	api.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status":  "OK",
-			"service": "user-service",
-		})
-	})
+	authRepo := repositories.NewUserRepository(db)
+	authService := services.NewUserService(authRepo)
+	authHandler := handlers.NewUserHandler(authService, logger)
+	app.Post("/users/register", authHandler.CreateNewUser)
+	app.Get("/health/", authHandler.GetHealthStatus)
 }
+

@@ -25,7 +25,7 @@ func LoadConfig() *Config {
 
 	return &Config{
 		ServiceName: getEnv("SERVICE_NAME", "user-service"),
-		ServerPort:  getEnv("SERVER_PORT", "8080"),
+		ServerPort:  getEnv("SERVER_PORT", "3000"),
 		DBHost:      getEnv("DB_HOST", "localhost"),
 		DBPort:      getEnvAsInt("DB_PORT", 5432),
 		DBUser:      getEnv("DB_USER", "postgres"),
