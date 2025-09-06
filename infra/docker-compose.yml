@@ -1,11 +1,24 @@
 services:
-  # ---------- DATABASES ---------- 
+  # ---------- Databases ---------- 
   user-db:
     image: postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: user_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - entritts-network
+  event-db:
+    image: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: event_db
     ports:
       - "5432:5432"
     volumes:
@@ -54,10 +67,24 @@ services:
       - rabbitmq
     networks:
       - entritts-network
-
+  event-service:
+    build: ../services/event-service
+    ports: 
+      - "3001:3000"
+    environment:
+      - DB_HOST=event-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=event_db
+      - SERVICE_PORT=3000
+    depends_on:
+      - event-db
+      - rabbitmq
+  
 volumes:
   user_db_data:
-  # event_db_data:
+  event_db_data:
 
 networks:
   entritts-network:
