@@ -17,7 +17,6 @@ type Event struct {
 	Status      EventStatus `gorm:"type:varchar(20);not null;default:'DRAFT'" json:"status"`
 	CreatedAt   time.Time   `gorm:"type:timestamp;default:current_timestamp" json:"created_at"`
 	UpdatedAt   time.Time   `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
-
 	// Relationships
 	Category    EventCategory     `gorm:"foreignKey:CategoryId" json:"category,omitempty"`
 	Venue       EventVenue        `gorm:"foreignKey:VenueId" json:"venue,omitempty"`
