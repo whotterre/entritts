@@ -2,34 +2,51 @@ services:
   # ---------- Databases ---------- 
   user-db:
     image: postgres
+    container_name: user-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: user_db
     ports:
-      - "5432:5432"
-    volumes:
-      - user_db_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - "5433:5432"  
     networks:
       - entritts-network
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+
   event-db:
     image: postgres
+    container_name: event-db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: password
       POSTGRES_DB: event_db
     ports:
-      - "5432:5432"
-    volumes:
-      - user_db_data:/var/lib/postgresql/data
-      - ./init-scripts:/docker-entrypoint-initdb.d
+      - "5434:5432" 
     networks:
       - entritts-network
+    volumes:
+      - event_db_data:/var/lib/postgresql/data
 
   # ---------- Message Broker ----------
   rabbitmq:
     image: rabbitmq:3-management
+    container_name: rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     ports:
       - "5672:5672"   # AMQP protocol
       - "15672:15672" # Management UI
@@ -39,6 +56,7 @@ services:
   # ---------- Microservices ----------
   api-gateway:
     build: ../services/gateway
+    container_name: api-gateway
     ports:
       - "8080:8080"
     environment:
@@ -46,42 +64,59 @@ services:
       - USER_SERVICE_URL=http://user-service:3000
       - EVENT_SERVICE_URL=http://event-service:3000
       - ORDER_SERVICE_URL=http://order-service:3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
-      - user-service
+      rabbitmq:
+        condition: service_healthy
+      user-service:
+        condition: service_started
     networks:
       - entritts-network
 
   user-service:
-    build: ../services/user-service  
-    ports:
-      - "3001:3000"
+    build:
+      context: ../services/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
     environment:
       - DB_HOST=user-db
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=password
       - DB_NAME=user_db
-      - SERVICE_PORT=3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "3002:3000"
     depends_on:
-      - user-db
-      - rabbitmq
+      user-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - entritts-network
+
   event-service:
-    build: ../services/event-service
-    ports: 
-      - "3001:3000"
+    build:
+      context: ../services/event-service
+      dockerfile: Dockerfile
+    container_name: event-service
     environment:
       - DB_HOST=event-db
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=password
       - DB_NAME=event_db
-      - SERVICE_PORT=3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    ports:
+      - "3003:3000"
     depends_on:
-      - event-db
-      - rabbitmq
-  
+      event-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - entritts-network
+
 volumes:
   user_db_data:
   event_db_data:
