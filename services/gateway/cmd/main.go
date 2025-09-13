@@ -24,7 +24,7 @@ func NewServiceRegistry(config *config.Config, logger *zap.Logger) *ServiceRegis
 	return &ServiceRegistry{
 		services: map[string]string{
 			"users":         "http://" + config.UserServiceHost + ":8081",
-			"events":        "http://" + config.EventServiceHost + ":3000",
+			"events":        "http://" + config.EventServiceHost + ":8080",
 			"orders":        "http://" + config.OrderServiceHost + ":3000",
 			"tickets":       "http://" + config.TicketServiceHost + ":3000",
 			"notifications": "http://" + config.NotificationServiceHost + ":3000",
