@@ -10,13 +10,17 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, jwtSecret string, logger *zap.Logger) {
+	// Initialize repositories
+	userRepo := repositories.NewUserRepository(db)
+	sessionsRepo := repositories.NewSessionRepository(db)
 
-	// Health check endpoint
-	authRepo := repositories.NewUserRepository(db)
-	authService := services.NewUserService(authRepo)
-	authHandler := handlers.NewUserHandler(authService, logger)
-	app.Post("/users/register", authHandler.CreateNewUser)
-	app.Get("/health", authHandler.GetHealthStatus)
+	// Initialize services
+	userService := services.NewUserService(userRepo, sessionsRepo) 
+	userHandler := handlers.NewUserHandler(userService, logger, jwtSecret)
+
+	// Setup routes
+	app.Post("/users/register", userHandler.CreateNewUser)
+	app.Post("/users/login", userHandler.LoginUser)
+	app.Get("/health", userHandler.GetHealthStatus)
 }
-

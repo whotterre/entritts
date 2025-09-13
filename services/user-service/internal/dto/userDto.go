@@ -2,7 +2,6 @@ package dto
 
 import (
 	"time"
-
 )
 
 type CreateUserDto struct {
@@ -10,9 +9,8 @@ type CreateUserDto struct {
 	LastName      string `json:"last_name" validate:"required,min=2,max=50"`
 	Email         string `json:"email" validate:"required,email"`
 	PhoneNumber   string `json:"phone_number" validate:"required,e164"`
-	PasswordHash  string `json:"-"`
+	PasswordHash  string `json:"password" validate:"required,min=8"`
 	ProfilePicURL string `json:"profile_pic_url" validate:"omitempty,url"`
-	EmailVerified bool   `json:"email_verified"`
 }
 
 type LoginUserDto struct {
