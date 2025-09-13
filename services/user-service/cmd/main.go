@@ -42,8 +42,6 @@ func main() {
 	}
 	log.Println("Database migration completed successfully")
 
-	print(db)
-
 	// Setup routes
 	routes.SetupRoutes(app, db, logger)
 

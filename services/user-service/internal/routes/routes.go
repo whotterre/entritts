@@ -17,6 +17,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger) {
 	authService := services.NewUserService(authRepo)
 	authHandler := handlers.NewUserHandler(authService, logger)
 	app.Post("/users/register", authHandler.CreateNewUser)
-	app.Get("/health/", authHandler.GetHealthStatus)
+	app.Get("/health", authHandler.GetHealthStatus)
 }
 

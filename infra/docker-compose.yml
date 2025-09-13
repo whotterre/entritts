@@ -18,7 +18,7 @@ services:
       - entritts-network
     volumes:
       - user_db_data:/var/lib/postgresql/data
-
+      - ./init-scripts:/docker-entrypoint-initdb.d
   event-db:
     image: postgres
     container_name: event-db
@@ -61,7 +61,7 @@ services:
       - "8080:8080"
     environment:
       - JWT_SECRET=proliferate
-      - USER_SERVICE_URL=http://user-service:3000
+      - USER_SERVICE_URL=http://user-service:8081
       - EVENT_SERVICE_URL=http://event-service:3000
       - ORDER_SERVICE_URL=http://order-service:3000
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
@@ -78,20 +78,18 @@ services:
       context: ../services/user-service
       dockerfile: Dockerfile
     container_name: user-service
+    depends_on:
+      user-db:
+        condition: service_healthy
     environment:
       - DB_HOST=user-db
       - DB_PORT=5432
       - DB_USER=postgres
       - DB_PASSWORD=password
       - DB_NAME=user_db
-      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - PORT=8081
     ports:
-      - "3002:3000"
-    depends_on:
-      user-db:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
+      - "3002:8081" 
     networks:
       - entritts-network
 
