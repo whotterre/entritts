@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"net/http"
 	"user-service/internal/dto"
 	"user-service/internal/services"
 
@@ -11,19 +12,21 @@ import (
 type UserHandler struct {
 	userService services.UserService
 	logger      *zap.Logger
+	jwtSecret   string
 }
 
-func NewUserHandler(userService services.UserService, logger *zap.Logger) *UserHandler {
+func NewUserHandler(userService services.UserService, logger *zap.Logger, jwtSecret string) *UserHandler {
 	return &UserHandler{
 		userService: userService,
-		logger:     logger,
+		logger:      logger,
+		jwtSecret: jwtSecret,
 	}
 }
 
 func (h *UserHandler) CreateNewUser(c *fiber.Ctx) error {
 	var input dto.CreateUserDto
 	if err := c.BodyParser(&input); err != nil {
-		h.logger.Error("Error parsing body", zap.Error(err))
+		h.logger.Error("Error parsing body while trying to sign up", zap.Error(err))
 	}
 	h.logger.Info("Received registration request")
 	if err := c.BodyParser(&input); err != nil {
@@ -35,30 +38,21 @@ func (h *UserHandler) CreateNewUser(c *fiber.Ctx) error {
 	}
 
 	// Log the parsed input
-	h.logger.Info("Parsed input", 
+	h.logger.Info("Parsed input",
 		zap.String("firstName", input.FirstName),
 		zap.String("lastName", input.LastName),
 		zap.String("email", input.Email),
 		zap.String("phoneNumber", input.PhoneNumber),
 	)
 
-
-	newUser := dto.CreateUserDto{
-		FirstName:    input.FirstName,
-		LastName:     input.LastName,
-		Email:        input.Email,
-		PhoneNumber:  input.PhoneNumber,
-		PasswordHash: input.PasswordHash,
-	}
-
 	// Log the user object being created
-	h.logger.Info("Creating user", 
-		zap.String("firstName", newUser.FirstName),
-		zap.String("lastName", newUser.LastName),
-		zap.String("email", newUser.Email),
-		zap.String("phoneNumber", newUser.PhoneNumber),
+	h.logger.Info("Creating user",
+		zap.String("firstName", input.FirstName),
+		zap.String("lastName", input.LastName),
+		zap.String("email", input.Email),
+		zap.String("phoneNumber", input.PhoneNumber),
 	)
-	if err := h.userService.CreateNewUser(newUser, h.logger); err != nil {
+	if err := h.userService.CreateNewUser(input, h.logger); err != nil {
 		if err == services.ErrUserAlreadyExists {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"error": "User already exists with that email",
@@ -76,6 +70,45 @@ func (h *UserHandler) CreateNewUser(c *fiber.Ctx) error {
 			"email":     input.Email,
 			"firstName": input.FirstName,
 			"lastName":  input.LastName,
+		},
+	})
+}
+
+func (h *UserHandler) LoginUser(c *fiber.Ctx) error {
+	var input dto.LoginUserDto
+
+	if err := c.BodyParser(&input); err != nil {
+			h.logger.Error("Error parsing body while trying to login", zap.Error(err))
+	}
+	h.logger.Info("Received log in request")
+	if err := c.BodyParser(&input); err != nil {
+		h.logger.Error("Failed to parse request body", zap.Error(err))
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":   "Invalid request body",
+			"details": err.Error(),
+		})
+	}
+
+	h.logger.Info("Parsed input",
+		zap.String("email", input.Email),
+		zap.String("password", input.Password),
+	)
+
+	// Call the service 
+	response, err := h.userService.LoginUser(input, h.logger, h.jwtSecret) 
+	if err != nil {
+		h.logger.Error("An error occurred while logging in user", zap.Error(err))
+	}
+	
+	
+	return c.Status(http.StatusOK).JSON(fiber.Map{
+		"message": "User logged in successfully",
+		"user": fiber.Map{
+			"email":     input.Email,
+			"accessToken": response.AccessToken,
+			"expiresIn": response.ExpiresIn,
+			"refreshToken": response.RefreshToken,
+			"sessionID": response.SessionID,
 		},
 	})
 }

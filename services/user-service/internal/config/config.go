@@ -15,6 +15,7 @@ type Config struct {
 	DBUser      string
 	DBPassword  string
 	DBName      string
+	JwtSecret   string
 	SSLMode     string
 	RabbitMQURL string
 }
@@ -31,6 +32,7 @@ func LoadConfig() *Config {
 		DBUser:      getEnv("DB_USER", "postgres"),
 		DBPassword:  getEnv("DB_PASSWORD", "password"),
 		DBName:      getEnv("DB_NAME", "user_db"),
+		JwtSecret:   getEnv("JWT_SECRET", "fur die Nachtsarbeit ist nichts so viel"),
 		SSLMode:     getEnv("SSL_MODE", "disable"),
 		RabbitMQURL: getEnv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/"),
 	}

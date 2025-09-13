@@ -36,14 +36,14 @@ func main() {
 		log.Println("Failed to create a new PostgreSQL database connection", err)
 	}
 	// Auto-migrate database models
-	if err := db.AutoMigrate(&models.User{}, &models.UserRole{}); err != nil {
+	if err := db.AutoMigrate(&models.User{}, &models.UserRole{}, &models.UserSession{}); err != nil {
 		log.Printf("Failed to migrate database: %v", err)
 		return
 	}
 	log.Println("Database migration completed successfully")
 
 	// Setup routes
-	routes.SetupRoutes(app, db, logger)
+	routes.SetupRoutes(app, db, cfg.JwtSecret, logger)
 
 	// Start server
 	log.Printf("Starting %s  on port %s", cfg.ServiceName, cfg.ServerPort)

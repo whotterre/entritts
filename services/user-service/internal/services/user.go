@@ -5,6 +5,7 @@ import (
 	"time"
 	"user-service/internal/dto"
 	"user-service/internal/models"
+	"user-service/internal/pkg/utils"
 	"user-service/internal/repositories"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,7 +15,8 @@ import (
 )
 
 var (
-	ErrUserAlreadyExists = errors.New("User already exists with that email")
+	ErrUserAlreadyExists       = errors.New("user already exists with that email")
+	ErrRoleServiceNotAvailable = errors.New("role service is not available")
 )
 
 type UserService interface {
@@ -27,8 +29,11 @@ type userService struct {
 	sessionsRepository repositories.SessionsRepository
 }
 
-func NewUserService(userRepository repositories.UserRepository) UserService {
-	return &userService{userRepository: userRepository}
+func NewUserService(userRepository repositories.UserRepository, sessionsRepository repositories.SessionsRepository) UserService {
+	return &userService{
+		userRepository:     userRepository,
+		sessionsRepository: sessionsRepository,
+	}
 }
 
 func (s *userService) CreateNewUser(input dto.CreateUserDto, logger *zap.Logger) error {
@@ -39,7 +44,6 @@ func (s *userService) CreateNewUser(input dto.CreateUserDto, logger *zap.Logger)
 			logger.Error("Something went wrong while checking if this account already exists")
 			return err
 		}
-		// Good - user doesn't exist yet
 	} else if user != nil {
 		logger.Error("User already exists with that email")
 		return ErrUserAlreadyExists
@@ -67,6 +71,10 @@ func (s *userService) CreateNewUser(input dto.CreateUserDto, logger *zap.Logger)
 		return err
 	}
 
+	logger.Info("User created successfully",
+		zap.String("userID", newUser.ID.String()),
+	)
+
 	return nil
 }
 
@@ -83,6 +91,9 @@ func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, jwtS
 		return dto.LoginUserResponse{}, errors.New("invalid credentials")
 	}
 
+	// Debug: Log user details
+	logger.Info("Found user", zap.String("user_id", user.ID.String()), zap.String("email", user.Email))
+
 	// Ensure password is valid
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
 	if err != nil {
@@ -91,32 +102,34 @@ func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, jwtS
 	}
 
 	// Sign JWT token
-	expiryTime := 1 * time.Hour // 1 hr
+	expiryTime := 1 * time.Hour
 	accessClaims := jwt.MapClaims{
 		"user_id": user.ID,
-		"exp":     time.Now().Add(expiryTime).Unix,
+		"email":   user.Email,
+		"exp":     time.Now().Add(1 * time.Hour).Unix(),
 	}
 
 	// Access token
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodES256, accessClaims)
-	signedAccessToken, err := accessToken.SignedString(jwtSecret)
+	accessToken, err := utils.SignJwtToken(jwtSecret, accessClaims)
 	if err != nil {
 		return dto.LoginUserResponse{}, err
 	}
+
 	// Refresh token
 	refreshClaims := jwt.MapClaims{
 		"user_id": user.ID,
+		"email":   user.Email,
 		"exp":     time.Now().Add(168 * time.Hour).Unix(), // 1 week
 	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodES256, refreshClaims)
-	signedRefreshToken, err := refreshToken.SignedString(jwtSecret)
+	refreshToken, err := utils.SignJwtToken(jwtSecret, refreshClaims)
 	if err != nil {
 		return dto.LoginUserResponse{}, err
 	}
 	// Create a new entry in the sessions table
 	newSession := models.UserSession{
-		AccessToken:  signedAccessToken,
-		RefreshToken: signedRefreshToken,
+		UserID:       user.ID,
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 		ExpiresAt:    time.Now().Add(expiryTime),
 	}
 	session, err := s.sessionsRepository.CreateNewSession(&newSession)
@@ -126,9 +139,9 @@ func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, jwtS
 	}
 
 	response := dto.LoginUserResponse{
-		AccessToken:  signedAccessToken,
+		AccessToken:  accessToken,
 		SessionID:    session.ID.String(),
-		RefreshToken: signedRefreshToken,
+		RefreshToken: refreshToken,
 		ExpiresIn:    time.Now().Add(expiryTime),
 	}
 
