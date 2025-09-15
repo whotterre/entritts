@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/contrib/fiberzap"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/proxy"
 	"go.uber.org/zap"
 )
@@ -38,6 +39,10 @@ func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 
+	rateLimiter := limiter.New(limiter.Config{
+		Max: 20,
+		Expiration: 1 * time.Second,
+	})
 	cfg := config.LoadConfig()
 	registry := NewServiceRegistry(cfg, logger)
 
@@ -45,6 +50,7 @@ func main() {
 
 	// Middleware
 	app.Use(fiberzap.New(fiberzap.Config{Logger: logger}))
+	app.Use(rateLimiter)
 	app.Use(cors.New())
 
 	// Public Routes Group
