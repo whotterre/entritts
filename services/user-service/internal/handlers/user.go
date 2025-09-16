@@ -19,7 +19,7 @@ func NewUserHandler(userService services.UserService, logger *zap.Logger, jwtSec
 	return &UserHandler{
 		userService: userService,
 		logger:      logger,
-		jwtSecret: jwtSecret,
+		jwtSecret:   jwtSecret,
 	}
 }
 
@@ -78,7 +78,7 @@ func (h *UserHandler) LoginUser(c *fiber.Ctx) error {
 	var input dto.LoginUserDto
 
 	if err := c.BodyParser(&input); err != nil {
-			h.logger.Error("Error parsing body while trying to login", zap.Error(err))
+		h.logger.Error("Error parsing body while trying to login", zap.Error(err))
 	}
 	h.logger.Info("Received log in request")
 	if err := c.BodyParser(&input); err != nil {
@@ -94,21 +94,24 @@ func (h *UserHandler) LoginUser(c *fiber.Ctx) error {
 		zap.String("password", input.Password),
 	)
 
-	// Call the service 
-	response, err := h.userService.LoginUser(input, h.logger, h.jwtSecret) 
+	// Call the service
+	response, err := h.userService.LoginUser(input, h.logger, h.jwtSecret)
 	if err != nil {
 		h.logger.Error("An error occurred while logging in user", zap.Error(err))
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error":   "Login failed",
+			"details": err.Error(),
+		})
 	}
-	
-	
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
 		"message": "User logged in successfully",
 		"user": fiber.Map{
-			"email":     input.Email,
-			"accessToken": response.AccessToken,
-			"expiresIn": response.ExpiresIn,
+			"email":        input.Email,
+			"accessToken":  response.AccessToken,
+			"expiresIn":    response.ExpiresIn,
 			"refreshToken": response.RefreshToken,
-			"sessionID": response.SessionID,
+			"sessionID":    response.SessionID,
 		},
 	})
 }

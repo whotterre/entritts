@@ -8,7 +8,6 @@ import (
 	"user-service/internal/pkg/utils"
 	"user-service/internal/repositories"
 
-	"github.com/golang-jwt/jwt/v5"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -78,7 +77,7 @@ func (s *userService) CreateNewUser(input dto.CreateUserDto, logger *zap.Logger)
 	return nil
 }
 
-func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, jwtSecret string) (dto.LoginUserResponse, error) {
+func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, pasetoSecret string) (dto.LoginUserResponse, error) {
 	// Ensure user exists
 	user, err := s.userRepository.GetUserByEmail(input.Email)
 	if err != nil {
@@ -101,27 +100,14 @@ func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, jwtS
 		return dto.LoginUserResponse{}, err
 	}
 
-	// Sign JWT token
+	// Sign PASETO token
 	expiryTime := 1 * time.Hour
-	accessClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(1 * time.Hour).Unix(),
-	}
-
-	// Access token
-	accessToken, err := utils.SignJwtToken(jwtSecret, accessClaims)
+	accessToken, err := utils.SignPasetoToken(pasetoSecret, user.ID.String(), user.Email, expiryTime)
 	if err != nil {
 		return dto.LoginUserResponse{}, err
 	}
 
-	// Refresh token
-	refreshClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(168 * time.Hour).Unix(), // 1 week
-	}
-	refreshToken, err := utils.SignJwtToken(jwtSecret, refreshClaims)
+	refreshToken, err := utils.SignPasetoToken(pasetoSecret, user.ID.String(), user.Email, 168*time.Hour)
 	if err != nil {
 		return dto.LoginUserResponse{}, err
 	}

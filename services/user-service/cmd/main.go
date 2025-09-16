@@ -43,7 +43,7 @@ func main() {
 	log.Println("Database migration completed successfully")
 
 	// Setup routes
-	routes.SetupRoutes(app, db, cfg.JwtSecret, logger)
+	routes.SetupRoutes(app, db, cfg.PasetoSecret, logger)
 
 	// Start server
 	log.Printf("Starting %s  on port %s", cfg.ServiceName, cfg.ServerPort)
