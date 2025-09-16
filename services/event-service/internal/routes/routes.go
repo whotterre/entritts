@@ -24,6 +24,11 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitm
 	categoryService := services.NewEventCategoryService(categoryRepo)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 
+	// Venue repositories and services
+	venueRepo := repository.NewEventVenueRepository(db)
+	venueService := services.NewEventVenueService(venueRepo)
+	venueHandler := handlers.NewEventVenueHandler(venueService, logger)
+	 
 	// Basic health check endpoint
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -32,15 +37,24 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitm
 		})
 	})
 
-	// Category routes under /api/v1/events/category
-	eventCategories := api.Group("/events/category")
+	events := api.Group("/events")
+	// Event routes
+	events.Post("/", eventHandler.CreateNewEvent)
+	// Event category routes
+	eventCategories := events.Group("/category")
 	eventCategories.Post("/", categoryHandler.CreateCategory)
 	eventCategories.Get("/", categoryHandler.GetCategories)
 	eventCategories.Get("/:id", categoryHandler.GetCategoryByID)
 	eventCategories.Put("/:id", categoryHandler.UpdateCategory)
 	eventCategories.Delete("/:id", categoryHandler.DeleteCategory)
 
-	// Event routes
-	events := api.Group("/events")
-	events.Post("/", eventHandler.CreateNewEvent)
+	// Event venue routes
+	venueCategories := events.Group("/venues")
+	venueCategories.Post("/", venueHandler.CreateVenue)
+	venueCategories.Get("/", venueHandler.GetVenues)
+	venueCategories.Get("/:id", venueHandler.GetVenueByID)
+	venueCategories.Put("/:id", venueHandler.UpdateVenue)
+	venueCategories.Delete("/:id", venueHandler.DeleteVenue)
+
+	
 }

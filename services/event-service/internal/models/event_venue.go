@@ -7,7 +7,7 @@ import (
 )
 
 type EventVenue struct {
-	VenueID      uuid.UUID `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"venue_id"`
+	VenueID      uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"venue_id"`
 	VenueName    string    `gorm:"type:varchar(255);not null" json:"venue_name"`
 	VenueAddress string    `gorm:"type:text;not null" json:"venue_address"`
 	City         string    `gorm:"type:varchar(100);not null" json:"city"`
