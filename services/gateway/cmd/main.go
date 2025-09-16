@@ -13,8 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// TODO: Add rate limiting as well
-
 // ServiceRegistry holds the URLs for the different microservices.
 type ServiceRegistry struct {
 	services map[string]string
@@ -194,6 +192,17 @@ func main() {
 	privateGroup := app.Group("/api/v1")
 	privateGroup.Use(middleware.RequireAuth(cfg, logger))
 
+	privateGroup.All("/events/category*", func(c *fiber.Ctx) error {
+		targetURL := registry.services["events"] + "/api/v1/events/category" + c.Params("*")
+		if err := proxy.Do(c, targetURL); err != nil {
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "Event category service unavailable",
+			})
+		}
+		c.Response().Header.Del(fiber.HeaderServer)
+		return nil
+	})
+
 	// Setup proxy routes for protected services
 	for serviceName, serviceURL := range registry.services {
 		// Skip auth routes as they're handled separately
@@ -201,7 +210,7 @@ func main() {
 			continue
 		}
 
-		// Create a closure to capture the serviceName and serviceURL
+		// Closure to capture the serviceName and serviceURL
 		func(name, url string) {
 			privateGroup.All("/"+name+"/*", func(c *fiber.Ctx) error {
 				targetURL := url + c.Params("*")

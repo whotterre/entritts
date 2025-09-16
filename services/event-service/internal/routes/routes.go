@@ -32,13 +32,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitm
 		})
 	})
 
-	// Category routes
-	categories := api.Group("/categories")
-	categories.Post("/", categoryHandler.CreateCategory)
-	categories.Get("/", categoryHandler.GetCategories)
-	categories.Get("/:id", categoryHandler.GetCategoryByID)
-	categories.Put("/:id", categoryHandler.UpdateCategory)
-	categories.Delete("/:id", categoryHandler.DeleteCategory)
+	// Category routes under /api/v1/events/category
+	eventCategories := api.Group("/events/category")
+	eventCategories.Post("/", categoryHandler.CreateCategory)
+	eventCategories.Get("/", categoryHandler.GetCategories)
+	eventCategories.Get("/:id", categoryHandler.GetCategoryByID)
+	eventCategories.Put("/:id", categoryHandler.UpdateCategory)
+	eventCategories.Delete("/:id", categoryHandler.DeleteCategory)
 
 	// Event routes
 	events := api.Group("/events")

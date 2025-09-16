@@ -2,6 +2,7 @@ package main
 
 import (
 	"event-service/internal/config"
+	"event-service/internal/models"
 	"event-service/internal/rabbitmq"
 	"event-service/internal/routes"
 	"log"
@@ -49,6 +50,28 @@ func main() {
 		logger.Error("Failed to initialize PostgreSQL connection for event_db", zap.Error(err))
 		return
 	}
+
+	if err := db.AutoMigrate(&models.EventCategory{}); err != nil {
+		logger.Error("Failed to migrate EventCategory", zap.Error(err))
+		return
+	}
+
+	if err := db.AutoMigrate(&models.EventVenue{}); err != nil {
+		logger.Error("Failed to migrate EventVenue", zap.Error(err))
+		return
+	}
+
+	if err := db.AutoMigrate(&models.Event{}); err != nil {
+		logger.Error("Failed to migrate Event", zap.Error(err))
+		return
+	}
+
+	if err := db.AutoMigrate(&models.EventParticipant{}); err != nil {
+		logger.Error("Failed to migrate EventParticipant", zap.Error(err))
+		return
+	}
+
+	logger.Info("Database migration completed successfully")
 	// Initialize RabbitMQ producer in the service
 	producer, err := rabbitmq.NewEventProducer(cfg.RabbitMQURL, logger)
 	if err != nil {

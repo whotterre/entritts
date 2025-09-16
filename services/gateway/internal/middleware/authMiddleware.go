@@ -3,10 +3,11 @@ package middleware
 import (
 	"gateway/internal/config"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/o1egl/paseto"
 	"go.uber.org/zap"
 )
 
@@ -32,31 +33,34 @@ func RequireAuth(config *config.Config, logger *zap.Logger) fiber.Handler {
 			})
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		// Ensure JWT is valid
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return "", nil
-		})
+		tokenString := strings.TrimSpace(strings.TrimPrefix(authHeader, "Bearer "))
+		logger.Info("Received token string", zap.String("token", tokenString))
+		if tokenString == "" {
+			logger.Warn("Empty token string")
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Empty token",
+			})
+		}
 
+		var jsonToken map[string]interface{}
+		err := paseto.NewV2().Decrypt(tokenString, []byte(config.PasetoSecret), &jsonToken, nil)
 		if err != nil {
-			logger.Warn("Invalid token", zap.Error(err))
+			logger.Warn("Token validation failed", zap.String("token", tokenString), zap.Error(err))
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token",
+				"error": "Invalid token: " + err.Error(),
 			})
 		}
 
-		claims, ok := token.Claims.(jwt.MapClaims)
-		if !ok {
-			logger.Warn("Invalid token claims")
+		// Check token expiration
+		exp, ok := jsonToken["exp"].(float64)
+		if !ok || int64(exp) < time.Now().Unix() {
+			logger.Warn("Token has expired or missing exp")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid token claims",
+				"error": "Token has expired or missing exp",
 			})
 		}
 
-		userIDStr, ok := claims["user_id"].(string)
+		userIDStr, ok := jsonToken["user_id"].(string)
 		if !ok {
 			logger.Warn("Invalid user ID in token")
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -71,7 +75,6 @@ func RequireAuth(config *config.Config, logger *zap.Logger) fiber.Handler {
 				"error": "Invalid user ID format",
 			})
 		}
-		
 
 		c.Locals("userID", userID)
 		return c.Next()
