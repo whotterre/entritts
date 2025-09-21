@@ -1,5 +1,5 @@
 services:
-  # ---------- Databases ---------- 
+  # ---------- Databases ----------
   user-db:
     image: postgres
     container_name: user-db
@@ -13,12 +13,13 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: user_db
     ports:
-      - "5433:5432"  
+      - "5433:5432"
     networks:
       - entritts-network
     volumes:
       - user_db_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
+
   event-db:
     image: postgres
     container_name: event-db
@@ -32,7 +33,7 @@ services:
       POSTGRES_PASSWORD: password
       POSTGRES_DB: event_db
     ports:
-      - "5434:5432" 
+      - "5434:5432"
     networks:
       - entritts-network
     volumes:
@@ -48,8 +49,8 @@ services:
       timeout: 5s
       retries: 5
     ports:
-      - "5672:5672"   # AMQP protocol
-      - "15672:15672" # Management UI
+      - "5672:5672"
+      - "15672:15672"
     networks:
       - entritts-network
 
@@ -62,7 +63,7 @@ services:
     environment:
       - JWT_SECRET=proliferate
       - USER_SERVICE_URL=http://user-service:8081
-      - EVENT_SERVICE_URL=http://event-service:3000
+      - EVENT_SERVICE_URL=http://event-service:8080
       - ORDER_SERVICE_URL=http://order-service:3000
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     depends_on:
@@ -72,6 +73,13 @@ services:
         condition: service_started
     networks:
       - entritts-network
+    develop:
+      watch:
+        - action: sync
+          path: ../services/gateway
+          target: /app
+        - action: rebuild
+          path: ../services/gateway/Dockerfile
 
   user-service:
     build:
@@ -89,9 +97,16 @@ services:
       - DB_NAME=user_db
       - PORT=8081
     ports:
-      - "3002:8081" 
+      - "3002:8081"
     networks:
       - entritts-network
+    develop:
+      watch:
+        - action: sync
+          path: ../services/user-service
+          target: /app
+        - action: rebuild
+          path: ../services/user-service/Dockerfile
 
   event-service:
     build:
@@ -115,6 +130,13 @@ services:
         condition: service_healthy
     networks:
       - entritts-network
+    develop:
+      watch:
+        - action: sync
+          path: ../services/event-service
+          target: /app
+        - action: rebuild
+          path: ../services/event-service/Dockerfile
 
 volumes:
   user_db_data:
