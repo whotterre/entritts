@@ -28,7 +28,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitm
 	venueRepo := repository.NewEventVenueRepository(db)
 	venueService := services.NewEventVenueService(venueRepo)
 	venueHandler := handlers.NewEventVenueHandler(venueService, logger)
-	 
+
+	events := api.Group("/events")
 	// Basic health check endpoint
 	api.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
@@ -36,8 +37,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitm
 			"service": "event-service",
 		})
 	})
-
-	events := api.Group("/events")
 	// Event routes
 	events.Post("/", eventHandler.CreateNewEvent)
 	// Event category routes

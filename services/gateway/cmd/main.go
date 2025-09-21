@@ -38,7 +38,7 @@ func main() {
 	defer logger.Sync()
 
 	rateLimiter := limiter.New(limiter.Config{
-		Max: 20,
+		Max:        20,
 		Expiration: 1 * time.Second,
 	})
 	cfg := config.LoadConfig()
@@ -150,7 +150,7 @@ func main() {
 		// Attempt the proxy request with simple retry logic
 		var err error
 		maxRetries := 3
-		for i := 0; i < maxRetries; i++ {
+		for i := range maxRetries {
 			if err = proxy.Do(c, targetURL); err == nil {
 				break
 			}
@@ -176,9 +176,9 @@ func main() {
 		return nil
 	})
 
-	// Public event routes
-	publicGroup.Get("/events", func(c *fiber.Ctx) error {
-		targetURL := registry.services["events"] + "/public" + c.Params("*")
+	// Public event routes (GET, POST, etc.)
+	publicGroup.All("/events*", func(c *fiber.Ctx) error {
+		targetURL := registry.services["events"] + "/api/v1/events" + c.Params("*")
 		if err := proxy.Do(c, targetURL); err != nil {
 			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 				"error": "Events service unavailable",
@@ -192,8 +192,8 @@ func main() {
 	privateGroup := app.Group("/api/v1")
 	privateGroup.Use(middleware.RequireAuth(cfg, logger))
 
-	privateGroup.All("/events/category*", func(c *fiber.Ctx) error {
-		targetURL := registry.services["events"] + "/api/v1/events/category" + c.Params("*")
+	privateGroup.All("/events/*", func(c *fiber.Ctx) error {
+		targetURL := registry.services["events"] + "/api/v1/events/" + c.Params("*")
 		if err := proxy.Do(c, targetURL); err != nil {
 			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 				"error": "Event category service unavailable",

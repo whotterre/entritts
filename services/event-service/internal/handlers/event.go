@@ -33,11 +33,12 @@ func (h *EventHandler) CreateNewEvent(c *fiber.Ctx) error {
 
 	h.logger.Info("Request body", zap.Any("request", req))
 	// Pass down control to the event service
-	err := h.eventService.CreateNewEvent(req)
+	newEvent, err := h.eventService.CreateNewEvent(req)
 	if err != nil {
 		return err
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"message": "Successfully created event",
+		"event": newEvent,
 	})
 }
