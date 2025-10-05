@@ -19,6 +19,6 @@ type Event struct {
 	CreatedAt   time.Time   `gorm:"type:timestamp;default:current_timestamp" json:"created_at"`
 	UpdatedAt   time.Time   `gorm:"type:timestamp;default:current_timestamp" json:"updated_at"`
 	// Relationships
-	Category EventCategory `gorm:"foreignKey:CategoryId" json:"category,omitempty"`
+	Category EventCategory `gorm:"foreignKey:CategoryId" json:"category"`
 	Venue    *EventVenue   `gorm:"foreignKey:VenueId" json:"venue,omitempty"`
 }

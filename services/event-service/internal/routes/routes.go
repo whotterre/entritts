@@ -16,7 +16,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitm
 
 	// Event repositories and services
 	eventRepo := repository.NewEventRepository(db)
-	eventService := services.NewEventService(eventRepo, *queue, logger)
+	outBoxRepo := repository.NewOutboxRepository(db)
+	eventService := services.NewEventService(eventRepo, outBoxRepo, db, logger)
 	eventHandler := handlers.NewEventHandler(eventService, logger)
 
 	// Category repositories and services
