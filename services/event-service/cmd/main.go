@@ -102,9 +102,8 @@ func main() {
 	go outboxService.StartOutboxProcessor(5*time.Second, stopCh)
 
 	// Setup routes
-	routes.SetupRoutes(app, db, logger, producer)
+	routes.SetupRoutes(app, db, logger)
 
-	// Graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
@@ -116,13 +115,11 @@ func main() {
 		}
 	}()
 
-	// Wait for shutdown signal
 	<-c
 	logger.Info("Shutting down server...")
 
 	close(stopCh)
 
-	// Shutdown server
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 

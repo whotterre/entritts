@@ -2,7 +2,6 @@ package routes
 
 import (
 	"event-service/internal/handlers"
-	"event-service/internal/rabbitmq"
 	"event-service/internal/repository"
 	"event-service/internal/services"
 
@@ -11,13 +10,16 @@ import (
 	"gorm.io/gorm"
 )
 
-func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger, queue *rabbitmq.EventProducer) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger) {
 	api := app.Group("/api/v1")
 
 	// Event repositories and services
 	eventRepo := repository.NewEventRepository(db)
 	outBoxRepo := repository.NewOutboxRepository(db)
-	eventService := services.NewEventService(eventRepo, outBoxRepo, db, logger)
+	eventCategoryRepo := repository.NewEventCategoryRepository(db)
+	eventVenueRepo := repository.NewEventVenueRepository(db)
+
+	eventService := services.NewEventService(eventRepo, eventCategoryRepo, eventVenueRepo, outBoxRepo, db, logger)
 	eventHandler := handlers.NewEventHandler(eventService, logger)
 
 	// Category repositories and services

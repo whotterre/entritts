@@ -46,7 +46,7 @@ func (r *userRepository) GetUserByEmail(email string) (*models.User, error) {
 
 func (r *userRepository) GetUserById(id uuid.UUID) (*models.User, error) {
 	var user *models.User
-	if err := r.db.Where("user_id = ?", id).First(&user).Error; err != nil {
+	if err := r.db.Where("id = ?", id).First(&user).Error; err != nil {
 		return nil, err
 	}
 	return user, nil
@@ -54,7 +54,7 @@ func (r *userRepository) GetUserById(id uuid.UUID) (*models.User, error) {
 
 func (r *userRepository) DeleteUser(id uuid.UUID) error {
 	var user *models.User
-	if err := r.db.Where("user_id = ?", id).Delete(&user).Error; err != nil {
+	if err := r.db.Where("id = ?", id).Delete(&user).Error; err != nil {
 		return err
 	}
 	return nil

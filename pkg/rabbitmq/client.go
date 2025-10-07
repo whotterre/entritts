@@ -45,7 +45,7 @@ func connectWithRetry(url string,
 	var conn *amqp091.Connection
 	var err error
 
-	for i := 0; i < maxRetries; i++ {
+	for i := range maxRetries {
 		conn, err = amqp091.Dial(url)
 		if err == nil {
 			return conn, nil

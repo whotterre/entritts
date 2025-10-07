@@ -1,6 +1,7 @@
 package rabbitmq
 
 import (
+	"event-service/internal/dto"
 	"time"
 
 	"go.uber.org/zap"
@@ -19,10 +20,10 @@ type EventMessage struct {
 
 type EventProducer struct {
 	producer *Producer
-	logger *zap.Logger
+	logger   *zap.Logger
 }
 
-func NewEventProducer(amqpURL string, logger *zap.Logger) (*EventProducer, error){
+func NewEventProducer(amqpURL string, logger *zap.Logger) (*EventProducer, error) {
 	producer, err := NewProducer(amqpURL, logger)
 	if err != nil {
 		return nil, err
@@ -30,21 +31,34 @@ func NewEventProducer(amqpURL string, logger *zap.Logger) (*EventProducer, error
 
 	return &EventProducer{
 		producer: producer,
-		logger:logger,
-	}, nil 
+		logger:   logger,
+	}, nil
 }
 
 func (ep *EventProducer) PublishEventCreated(eventID, organizerID, title string, ticketTypes []any) error {
 	message := map[string]any{
-		"event_id": eventID,
+		"event_id":     eventID,
 		"organizer_id": organizerID,
-		"event_title": title,
+		"event_title":  title,
 		"ticket_types": ticketTypes,
-		"action": "created",
-		"timestamp": time.Now().Format(time.RFC3339),
+		"action":       "created",
+		"timestamp":    time.Now().Format(time.RFC3339),
 	}
 
-	return ep.producer.Publish("events", "event.created", message)
+	// Use PublishWithRetry for better reliability in outbox processing
+	return ep.producer.PublishWithRetry("events", "event.created", message, 3)
+}
+
+func (ep *EventProducer) PublishEventCreatedPending(eventID, organizerID, title string, ticketTypes []dto.TicketType) error {
+	message := map[string]any{
+		"event_id":     eventID,
+		"organizer_id": organizerID,
+		"event_title":  title,
+		"ticket_types": ticketTypes,
+		"action":       "created.pending",
+		"timestamp":    time.Now().Format(time.RFC3339),
+	}
+	return ep.producer.PublishWithRetry("events", "event.created.pending", message, 3)
 }
 
 func (ep *EventProducer) PublishEventUpdated(eventID string, updates map[string]interface{}) error {
@@ -55,7 +69,7 @@ func (ep *EventProducer) PublishEventUpdated(eventID string, updates map[string]
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
-	return ep.producer.Publish("events", "event.updated", message)
+	return ep.producer.PublishWithRetry("events", "event.updated", message, 3)
 }
 
 func (ep *EventProducer) PublishEventDeleted(eventID string) error {
@@ -65,7 +79,11 @@ func (ep *EventProducer) PublishEventDeleted(eventID string) error {
 		"timestamp": time.Now().Format(time.RFC3339),
 	}
 
-	return ep.producer.Publish("events", "event.deleted", message)
+	return ep.producer.PublishWithRetry("events", "event.deleted", message, 3)
+}
+
+func (ep *EventProducer) IsConnected() bool {
+	return ep.producer.IsConnected()
 }
 
 func (ep *EventProducer) Close() {

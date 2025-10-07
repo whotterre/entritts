@@ -12,7 +12,7 @@ type Event struct {
 	Title       string      `gorm:"type:varchar(255);not null" json:"title"`
 	Description string      `gorm:"type:text" json:"description"`
 	CategoryId  uuid.UUID   `gorm:"type:uuid;not null" json:"category_id"`
-	VenueId     *uuid.UUID  `gorm:"type:uuid" json:"venue_id"` // Optional venue
+	VenueId     *uuid.UUID  `gorm:"type:uuid" json:"venue_id"` 
 	StartDate   time.Time   `gorm:"type:timestamp;not null" json:"start_date"`
 	EndDate     time.Time   `gorm:"type:timestamp;not null" json:"end_date"`
 	Status      EventStatus `gorm:"type:varchar(20);not null;default:'DRAFT'" json:"status"`

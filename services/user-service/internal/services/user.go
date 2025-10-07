@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"time"
 	"user-service/internal/dto"
@@ -8,6 +9,7 @@ import (
 	"user-service/internal/pkg/utils"
 	"user-service/internal/repositories"
 
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -21,6 +23,8 @@ var (
 type UserService interface {
 	CreateNewUser(input dto.CreateUserDto, logger *zap.Logger) error
 	LoginUser(input dto.LoginUserDto, logger *zap.Logger, jwtSecret string) (dto.LoginUserResponse, error)
+	GetUserByID(ctx context.Context, userID string) (*models.User, error)
+	IncrementUserEventCount(ctx context.Context, userID string) error
 }
 
 type userService struct {
@@ -36,7 +40,7 @@ func NewUserService(userRepository repositories.UserRepository, sessionsReposito
 }
 
 func (s *userService) CreateNewUser(input dto.CreateUserDto, logger *zap.Logger) error {
-	// Ensure user doesn't exist
+	// Ensure user doesn't exist beforehand
 	user, err := s.userRepository.GetUserByEmail(input.Email)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -132,4 +136,55 @@ func (s *userService) LoginUser(input dto.LoginUserDto, logger *zap.Logger, pase
 	}
 
 	return response, nil
+}
+
+// GetUserByID retrieves a user by their ID
+func (s *userService) GetUserByID(ctx context.Context, userID string) (*models.User, error) {
+	// Parse UUID
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, errors.New("invalid user ID format")
+	}
+
+	user, err := s.userRepository.GetUserById(parsedID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // User not found, return nil without error
+		}
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// IncrementUserEventCount increments the event count for a user (organizer)
+func (s *userService) IncrementUserEventCount(ctx context.Context, userID string) error {
+	// Parse UUID
+	parsedID, err := uuid.Parse(userID)
+	if err != nil {
+		return errors.New("invalid user ID format")
+	}
+
+	// For now, we'll just log that we're updating the count
+	// In a real implementation, you might have an events_count field in the users table
+	// or a separate organizer_stats table
+
+	// Check if user exists first
+	user, err := s.userRepository.GetUserById(parsedID)
+	if err != nil {
+		return err
+	}
+
+	if user == nil {
+		return errors.New("user not found")
+	}
+
+	// TODO: Implement actual count increment logic
+	// This could be:
+	// 1. Update a field in the users table
+	// 2. Insert/update a record in an organizer_stats table
+	// 3. Cache the count in Redis, etc.
+
+	// For now, this is a no-op that just validates the user exists
+	return nil
 }

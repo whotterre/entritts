@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/rabbitmq/amqp091-go"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func NewPublisher(client *Client) *Publisher {
@@ -46,7 +45,7 @@ func (p *Publisher) Publish(event Event) error {
 	return nil
 }
 
-func (p *Publisher) PublishJSON(exchange, routingKey string, data any, headers amqp.Table) error {
+func (p *Publisher) PublishJSON(exchange, routingKey string, data any, headers amqp091.Table) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -83,7 +82,7 @@ func (p *Publisher) PublishWithConfirmation(event Event) error {
 		return err
 	}
 
-	confirms := p.Client.Channel.NotifyPublish(make(chan amqp.Confirmation, 1))
+	confirms := p.Client.Channel.NotifyPublish(make(chan amqp091.Confirmation, 1))
 	err = p.Publish(event)
 	if err != nil {
 		return err

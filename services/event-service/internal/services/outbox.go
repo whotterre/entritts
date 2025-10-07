@@ -40,12 +40,24 @@ func (s *outboxService) PublishPendingEvents() error {
 		return err
 	}
 
+	if len(events) == 0 {
+		s.logger.Debug("No pending events to publish")
+		return nil
+	}
+
+	s.logger.Info("Processing pending outbox events", zap.Int("count", len(events)))
+
+	successCount := 0
+	failureCount := 0
+
 	for _, event := range events {
-		err := s.publishEvent(event)
+		err := s.publishEventWithRetry(event, 3)
 		if err != nil {
-			s.logger.Error("Failed to publish event",
+			s.logger.Error("Failed to publish event after retries",
 				zap.String("event_id", event.ID.String()),
+				zap.String("event_type", event.EventType),
 				zap.Error(err))
+			failureCount++
 			continue
 		}
 
@@ -54,8 +66,17 @@ func (s *outboxService) PublishPendingEvents() error {
 			s.logger.Error("Failed to mark event as published",
 				zap.String("event_id", event.ID.String()),
 				zap.Error(err))
+			// Don't increment failure count - message was published successfully
+		} else {
+			successCount++
 		}
 	}
+
+	s.logger.Info("Outbox processing completed",
+		zap.Int("success", successCount),
+		zap.Int("failures", failureCount),
+		zap.Int("total", len(events)),
+	)
 
 	return nil
 }
@@ -85,6 +106,33 @@ func (s *outboxService) publishEvent(event models.OutboxEvent) error {
 		s.logger.Warn("Unknown event type", zap.String("event_type", event.EventType))
 		return nil
 	}
+}
+
+// publishEventWithRetry attempts to publish an event with retry logic
+func (s *outboxService) publishEventWithRetry(event models.OutboxEvent, maxRetries int) error {
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		err = s.publishEvent(event)
+		if err == nil {
+			return nil
+		}
+
+		s.logger.Warn("Publish attempt failed, retrying",
+			zap.String("event_id", event.ID.String()),
+			zap.String("event_type", event.EventType),
+			zap.Int("attempt", i+1),
+			zap.Int("max_retries", maxRetries),
+			zap.Error(err),
+		)
+
+		if i < maxRetries-1 {
+			// Exponential backoff: 1s, 2s, 4s
+			backoff := time.Duration(1<<uint(i)) * time.Second
+			time.Sleep(backoff)
+		}
+	}
+
+	return err
 }
 
 func (s *outboxService) StartOutboxProcessor(interval time.Duration, stopCh <-chan struct{}) {
