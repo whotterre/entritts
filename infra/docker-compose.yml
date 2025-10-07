@@ -89,6 +89,8 @@ services:
     depends_on:
       user-db:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       - DB_HOST=user-db
       - DB_PORT=5432
@@ -96,6 +98,7 @@ services:
       - DB_PASSWORD=password
       - DB_NAME=user_db
       - PORT=8081
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
     ports:
       - "3002:8081"
     networks:
