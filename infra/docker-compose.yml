@@ -4,7 +4,7 @@ services:
     image: postgres
     container_name: user-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,7 +24,7 @@ services:
     image: postgres
     container_name: event-db
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -39,12 +39,31 @@ services:
     volumes:
       - event_db_data:/var/lib/postgresql/data
 
+  ticket-db:
+    image: postgres
+    container_name: ticket-db
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ticket_db
+    ports:
+      - "5435:5432"
+    networks:
+      - entritts-network
+    volumes:
+      - ticket_db_data:/var/lib/postgresql/data
+
   # ---------- Message Broker ----------
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      test: [ "CMD", "rabbitmq-diagnostics", "check_port_connectivity" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -140,10 +159,41 @@ services:
           target: /app
         - action: rebuild
           path: ../services/event-service/Dockerfile
-
+        
+  ticket-service:
+    build:
+      context: ../services/ticket-service
+      dockerfile: Dockerfile
+    container_name: ticket-service
+    environment:
+      - DB_HOST=ticket-db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=password
+      - DB_NAME=ticket_db
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - SERVER_PORT=8080
+    ports:
+      - "3004:8080"
+    depends_on:
+      ticket-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - entritts-network
+    develop:
+      watch:
+        - action: sync
+          path: ../services/ticket-service
+          target: /app
+        - action: rebuild
+          path: ../services/ticket-service/Dockerfile
 volumes:
   user_db_data:
   event_db_data:
+  ticket_db_data:
+
 
 networks:
   entritts-network:

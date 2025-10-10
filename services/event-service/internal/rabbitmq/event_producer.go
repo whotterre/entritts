@@ -89,3 +89,7 @@ func (ep *EventProducer) IsConnected() bool {
 func (ep *EventProducer) Close() {
 	ep.producer.Close()
 }
+
+func (ep *EventProducer) PublishTicketCreate(payload map[string]any) error {
+	return ep.producer.PublishWithRetry("tickets", "ticket.created.pending", payload, 3)
+}

@@ -42,6 +42,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, logger *zap.Logger) {
 	})
 	// Event routes
 	events.Post("/", eventHandler.CreateNewEvent)
+	events.Post("/:id/ticket-type", eventHandler.CreateTicketTypeForEvent)
 	// Event category routes
 	eventCategories := events.Group("/category")
 	eventCategories.Post("/", categoryHandler.CreateCategory)

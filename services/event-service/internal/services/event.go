@@ -16,29 +16,30 @@ import (
 
 type EventService interface {
 	CreateNewEvent(eventData dto.CreateNewEventDto) (*dto.CreateNewEventResponse, error)
+	CreateTicketForEvent(ticketTypeData dto.CreateTicketForEventDto) (*dto.CreateTicketForEventResponse, error)
 }
 
 type eventService struct {
-	eventRepository repository.EventRepository
+	eventRepository         repository.EventRepository
 	eventCategoryRepository repository.EventCategoryRepository
-	eventVenueRepository repository.EventVenueRepository
-	outboxRepo      repository.OutboxRepository
-	db              *gorm.DB
-	logger          *zap.Logger
+	eventVenueRepository    repository.EventVenueRepository
+	outboxRepo              repository.OutboxRepository
+	db                      *gorm.DB
+	logger                  *zap.Logger
 }
 
-func NewEventService(eventRepository repository.EventRepository, 
+func NewEventService(eventRepository repository.EventRepository,
 	eventCategoryRepository repository.EventCategoryRepository,
-	eventVenueRepository repository.EventVenueRepository, 
-	outboxRepo repository.OutboxRepository, 
+	eventVenueRepository repository.EventVenueRepository,
+	outboxRepo repository.OutboxRepository,
 	db *gorm.DB, logger *zap.Logger) EventService {
 	return &eventService{
-		eventRepository: eventRepository,
+		eventRepository:         eventRepository,
 		eventCategoryRepository: eventCategoryRepository,
-		eventVenueRepository: eventVenueRepository,
-		outboxRepo:      outboxRepo,
-		db:              db,
-		logger:          logger,
+		eventVenueRepository:    eventVenueRepository,
+		outboxRepo:              outboxRepo,
+		db:                      db,
+		logger:                  logger,
 	}
 }
 
@@ -172,4 +173,75 @@ func (s *eventService) CreateNewEvent(eventData dto.CreateNewEventDto) (*dto.Cre
 		}
 	}
 	return &response, nil
+}
+
+func (s *eventService) CreateTicketForEvent(ticketData dto.CreateTicketForEventDto) (*dto.CreateTicketForEventResponse, error) {
+	// Ensure event with the specified id exists
+	eventID := ticketData.EventID
+	ev, err := s.eventRepository.GetEventByID(eventID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("event not found")
+		}
+		return nil, err
+	}
+	if ev == nil {
+		return nil, errors.New("event not found")
+	}
+
+	// Build ticket payload for outbox (so ticket-service can create record)
+	payload, err := json.Marshal(map[string]interface{}{
+		"event_id":        ticketData.EventID.String(),
+		"name":            ticketData.Name,
+		"description":     ticketData.Description,
+		"price":           ticketData.Price.String(),
+		"total_quantity":  ticketData.TotalQuantity,
+		"available":       ticketData.AvailableAmount,
+		"reserved":        ticketData.Reserved,
+		"sold":            ticketData.Sold,
+		"sale_start_date": ticketData.SaleStartDate.Format(time.RFC3339),
+		"sale_end_date":   ticketData.SaleEndDate.Format(time.RFC3339),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Use outbox to publish the ticket.create event in a transaction
+	tx := s.db.Begin()
+	if tx.Error != nil {
+		return nil, tx.Error
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	if err := s.outboxRepo.CreateOutboxEvent(tx, ticketData.EventID.String(), "ticket.create", string(payload)); err != nil {
+		tx.Rollback()
+		s.logger.Error("Failed to create ticket outbox event", zap.Error(err))
+		return nil, err
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		return nil, err
+	}
+
+	// Build response DTO
+	resp := &dto.CreateTicketForEventResponse{
+		EventID:         ticketData.EventID,
+		Name:            ticketData.Name,
+		Description:     ticketData.Description,
+		Price:           ticketData.Price,
+		TotalQuantity:   ticketData.TotalQuantity,
+		AvailableAmount: ticketData.AvailableAmount,
+		Reserved:        ticketData.Reserved,
+		Sold:            ticketData.Sold,
+		SaleStartDate:   ticketData.SaleStartDate,
+		SaleEndDate:     ticketData.SaleEndDate,
+	}
+
+	s.logger.Info("Ticket create outbox event stored", zap.String("event_id", ticketData.EventID.String()), zap.String("ticket_name", ticketData.Name))
+
+	return resp, nil
 }

@@ -105,3 +105,21 @@ func (h *EventHandler) CreateNewEvent(c *fiber.Ctx) error {
 		"timestamp": c.Context().Time(),
 	})
 }
+
+func (h *EventHandler) CreateTicketTypeForEvent(c *fiber.Ctx) error {
+	// Parse request body
+	var req dto.CreateTicketForEventDto
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.Error("Failed to create ticket type for event because", zap.Error(err))
+
+	}
+
+	createdTicketTypeResponse, err := h.eventService.CreateTicketForEvent(req)
+	if err != nil {
+		h.logger.Error("Failed to create ticket type for event because", zap.Error(err))
+	}
+	return c.Status(http.StatusBadRequest).JSON(fiber.Map{
+		"message": "Added ticket type successfully",
+		"ticketTypes": createdTicketTypeResponse,
+	})
+}

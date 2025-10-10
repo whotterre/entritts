@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"event-service/internal/models"
 	"time"
 
 	"github.com/google/uuid"
@@ -17,12 +18,13 @@ type CreateNewEventDto struct {
 	EndDate     time.Time `json:"end_date" validate:"required,gtefield=StartDate"`
 	VenueId     uuid.UUID `json:"venue_id" validate:"required"`
 
-	MaxCapacity *int                 `json:"max_capacity" validate:"omitempty,min=1"`
-	IsPrivate   bool                 `json:"is_private"`
-	Tags        []string             `json:"tags" validate:"dive,min=2,max=50"`
-	Status      string               `json:"status"`
-	SocialLinks []EventSocialLinkDto `json:"social_links" validate:"dive"`
-	TicketTypes []TicketType         `json:"ticket_types" validate:"required,dive"`
+	MaxCapacity  *int                 `json:"max_capacity" validate:"omitempty,min=1"`
+	IsPrivate    bool                 `json:"is_private"`
+	Tags         []string             `json:"tags" validate:"dive,min=2,max=50"`
+	Status       string               `json:"status"`
+	NumAttendees int                  `json:"num_attendees"`
+	SocialLinks  []EventSocialLinkDto `json:"social_links" validate:"dive"`
+	TicketTypes  []TicketType         `json:"ticket_types" validate:"required,dive"`
 }
 
 // EventSocialLinkDto represents a social media link for an event
@@ -33,22 +35,17 @@ type EventSocialLinkDto struct {
 
 // CreateNewEventResponse represents the response after creating a new event
 type CreateNewEventResponse struct {
-	EventId     uuid.UUID    `json:"event_id"`
-	Title       string       `json:"title"`
-	Description string       `json:"description"`
-	StartDate   time.Time    `json:"start_date"`
-	EndDate     time.Time    `json:"end_date"`
-	Status      string       `json:"status"`
-	CreatedAt   time.Time    `json:"created_at"`
-	TicketTypes []TicketType `json:"ticket_types"`
-
-	// Include basic venue info in response
-	Venue struct {
-		VenueId   uuid.UUID `json:"venue_id"`
-		VenueName string    `json:"venue_name"`
-		City      string    `json:"city"`
-		Country   string    `json:"country"`
-	} `json:"venue"`
+	EventId      uuid.UUID    `json:"event_id"`
+	Title        string       `json:"title"`
+	Description  string       `json:"description"`
+	StartDate    time.Time    `json:"start_date"`
+	EndDate      time.Time    `json:"end_date"`
+	Status       string       `json:"status"`
+	CreatedAt    time.Time    `json:"created_at"`
+	TicketTypes  []TicketType `json:"ticket_types"`
+	NumAttendees int          `json:"num_attendees"`
+	// Include basic venue info in response (pointer so it can be null)
+	Venue *models.EventVenue `json:"venue,omitempty"`
 }
 
 type TicketType struct {
@@ -124,4 +121,30 @@ type CategoryDto struct {
 	CategoryId  uuid.UUID `json:"category_id"`
 	Name        string    `json:"name"`
 	Description string    `json:"description"`
+}
+
+type CreateTicketForEventDto struct {
+	EventID         uuid.UUID       `gorm:"type:uuid;primaryKey;default:uuid_generate_v4()" json:"event_id"`
+	Name            string          `gorm:"type:varchar(100);not null" json:"name"`
+	Description     string          `gorm:"type:text" json:"description"`
+	Price           decimal.Decimal `gorm:"type:decimal(10,2);not null" json:"price"`
+	TotalQuantity   int             `gorm:"not null" json:"total_quantity"`
+	AvailableAmount int             `gorm:"not null" json:"available"`
+	Reserved        int             `gorm:"default:0" json:"reserved"`
+	Sold            int             `gorm:"default:0" json:"sold"`
+	SaleStartDate   time.Time       `gorm:"not null" json:"sale_start_date"`
+	SaleEndDate     time.Time       `gorm:"not null" json:"sale_end_date"`
+}
+
+type CreateTicketForEventResponse struct {
+	EventID         uuid.UUID       `json:"event_id"`
+	Name            string          `json:"name"`
+	Description     string          `json:"description"`
+	Price           decimal.Decimal `json:"price"`
+	TotalQuantity   int             `json:"total_quantity"`
+	AvailableAmount int             `json:"available"`
+	Reserved        int             `json:"reserved"`
+	Sold            int             `json:"sold"`
+	SaleStartDate   time.Time       `json:"sale_start_date"`
+	SaleEndDate     time.Time       `json:"sale_end_date"`
 }
